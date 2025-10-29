@@ -124,10 +124,12 @@ async def version() -> VersionInfo:
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest, http_request: Request) -> AnalyzeResponse:
-    """Analyze text for sentiment and toxicity.
+    """Analyze text for sentiment and toxicity using JSON.
+    
+    For multi-line text with newlines, use the /analyze/text endpoint instead.
     
     Args:
-        request: Request containing text to analyze
+        request: JSON request body with text field
         http_request: FastAPI request object for logging
         
     Returns:
@@ -145,6 +147,59 @@ async def analyze(request: AnalyzeRequest, http_request: Request) -> AnalyzeResp
     # Log request metrics
     logger.info(
         "analyze_request",
+        extra={
+            "text_length": text_length,
+            "latency_ms": round(latency_ms, 2),
+            "backend": inference_service.backend_name(),
+            "sentiment": result["sentiment"]["label"],
+            "client_ip": http_request.client.host if http_request.client else "unknown"
+        }
+    )
+    
+    return AnalyzeResponse(
+        sentiment=SentimentResult(
+            label=result["sentiment"]["label"],
+            score=result["sentiment"]["score"]
+        ),
+        toxicity=result["toxicity"],
+        model_backend=inference_service.backend_name(),
+        latency_ms=latency_ms
+    )
+
+
+@app.post("/analyze/text", response_model=AnalyzeResponse)
+async def analyze_text(text: str = Form(..., description="Text to analyze (supports multi-line input)"), http_request: Request = None) -> AnalyzeResponse:
+    """Analyze text for sentiment and toxicity using form data.
+    
+    This endpoint accepts plain text via form data, making it easy to paste
+    multi-line text with newlines directly in the Swagger UI.
+    
+    Args:
+        text: Plain text to analyze (form field)
+        http_request: FastAPI request object for logging
+        
+    Returns:
+        Analysis results with sentiment, toxicity, backend, and latency
+    """
+    # Validate text is not empty
+    if not text or not text.strip():
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Text cannot be empty"}
+        )
+    
+    start_time = time.perf_counter()
+    text_length = len(text)
+    
+    # Perform analysis
+    result = inference_service.analyze(text)
+    
+    # Calculate latency
+    latency_ms = (time.perf_counter() - start_time) * 1000
+    
+    # Log request metrics
+    logger.info(
+        "analyze_text_request",
         extra={
             "text_length": text_length,
             "latency_ms": round(latency_ms, 2),

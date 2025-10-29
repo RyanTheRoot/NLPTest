@@ -30,18 +30,24 @@ test:
 	docker run --rm -e PYTHONPATH=/app $(IMAGE_NAME) pytest tests/test_api.py -v
 
 analyze:
-	@echo "Sending example request to /analyze..."
+	@echo "Sending example requests..."
 	@echo ""
-	@echo "Test 1: Positive sentiment"
+	@echo "Test 1: JSON endpoint - Positive sentiment"
 	curl -X POST http://localhost:$(PORT)/analyze \
 		-H "Content-Type: application/json" \
 		-d '{"text": "I love this product, it works great!"}' \
 		| python3 -m json.tool
 	@echo ""
-	@echo "Test 2: Negative/toxic text"
+	@echo "Test 2: JSON endpoint - Negative/toxic text"
 	curl -X POST http://localhost:$(PORT)/analyze \
 		-H "Content-Type: application/json" \
 		-d '{"text": "This is terrible and you are stupid"}' \
+		| python3 -m json.tool
+	@echo ""
+	@echo "Test 3: Form data endpoint - Multi-line text"
+	@printf "This is a great product!\n\nI highly recommend it to everyone." | \
+		curl -X POST http://localhost:$(PORT)/analyze/text \
+		-F "text=<-" \
 		| python3 -m json.tool
 
 offline:

@@ -69,11 +69,19 @@ This runs the container with `--network none` and successfully makes requests, d
 make stop
 ```
 
+### Interactive API Explorer
+
+Open `http://localhost:8000/docs` in your browser for an interactive Swagger UI where you can:
+- Test all endpoints directly
+- View request/response schemas
+- Use **POST /analyze** for JSON requests
+- Use **POST /analyze/text** for easy multi-line text pasting (no need to escape newlines!)
+
 ## API Reference
 
 ### POST /analyze
 
-Analyzes text for sentiment and toxicity.
+Analyzes text for sentiment and toxicity using **JSON**.
 
 **Request:**
 ```json
@@ -81,6 +89,22 @@ Analyzes text for sentiment and toxicity.
   "text": "Your text here"
 }
 ```
+
+**Note:** For multi-line text in JSON, use `\n` for newlines or put everything on one line.
+
+### POST /analyze/text
+
+Analyzes text for sentiment and toxicity using **form data** (multi-line friendly).
+
+**Request:**
+```bash
+curl -X POST http://localhost:8000/analyze/text \
+  -F "text=Your text here
+with multiple lines
+and paragraphs!"
+```
+
+**Perfect for:** Pasting multi-line text directly in the `/docs` Swagger UI!
 
 **Response:**
 ```json

@@ -156,3 +156,59 @@ def test_punctuation_only_text(client):
     assert "sentiment" in data
     assert "toxicity" in data
 
+
+# Tests for /analyze/text endpoint (form data)
+
+def test_analyze_text_endpoint_basic(client):
+    """Test the form data endpoint with basic text."""
+    response = client.post(
+        "/analyze/text",
+        data={"text": "I love this product"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Same response structure as JSON endpoint
+    assert "sentiment" in data
+    assert "toxicity" in data
+    assert "model_backend" in data
+    assert "latency_ms" in data
+    assert data["sentiment"]["label"] in ["POSITIVE", "NEGATIVE"]
+
+
+def test_analyze_text_multiline(client):
+    """Test form data endpoint with multi-line text."""
+    multiline_text = """This is a great product!
+    
+I highly recommend it to everyone.
+It works perfectly."""
+    
+    response = client.post(
+        "/analyze/text",
+        data={"text": multiline_text}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should handle newlines correctly
+    assert data["sentiment"]["label"] == "POSITIVE"
+    assert 0.0 <= data["toxicity"] <= 1.0
+
+
+def test_analyze_text_empty_rejected(client):
+    """Test that empty text is rejected on form endpoint."""
+    response = client.post(
+        "/analyze/text",
+        data={"text": ""}
+    )
+    assert response.status_code == 422
+
+
+def test_analyze_text_whitespace_only_rejected(client):
+    """Test that whitespace-only text is rejected (boundary test)."""
+    response = client.post(
+        "/analyze/text",
+        data={"text": "   \n\n\t  "}
+    )
+    assert response.status_code == 422
+
