@@ -19,7 +19,7 @@ A self-contained offline API for analyzing text sentiment and toxicity. Runs ent
 make build
 ```
 
-This downloads HuggingFace models and trains the TF-IDF fallback during the build process.
+This downloads HuggingFace models and trains the TF-IDF fallback during the build process. The build captures the current git SHA for version tracking.
 
 ### Run the API
 
@@ -52,6 +52,16 @@ make analyze
 ```bash
 make test
 ```
+
+### Verify Offline Operation
+
+Prove the API works with **zero network access**:
+
+```bash
+make offline
+```
+
+This runs the container with `--network none` and successfully makes requests, demonstrating that all models are truly baked into the image.
 
 ### Stop the Container
 
@@ -103,6 +113,20 @@ Health check endpoint.
 }
 ```
 
+### GET /version
+
+Version and model information.
+
+**Response:**
+```json
+{
+  "version": "1.0.0",
+  "git_sha": "a1b2c3d",
+  "sentiment_model": "distilbert-base-uncased-finetuned-sst-2-english",
+  "toxicity_model": "unitary/toxic-bert"
+}
+```
+
 ## Model Backends
 
 ### Transformer (Default)
@@ -132,11 +156,13 @@ This API requires **zero network access** at runtime:
 3. `TRANSFORMERS_OFFLINE=1` environment variable enforces offline mode
 4. No external API calls or database connections
 
-You can verify by running the container with network disabled:
+You can verify with the offline test:
 
 ```bash
-docker run --network none -p 8000:8000 sentiment-toxicity-api
+make offline
 ```
+
+This proves the API works with `--network none` - a strong guarantee for airgapped or restricted environments.
 
 ## Performance Tips
 
@@ -144,6 +170,15 @@ docker run --network none -p 8000:8000 sentiment-toxicity-api
 - Both backends warm up on startup with a dummy inference
 - Use `--workers` flag with uvicorn for multi-process handling (increases memory usage)
 - For batch processing, consider reusing the same container
+- Request body size is capped at 1 MB to prevent abuse
+
+## Security
+
+- Container runs as non-root user (UID 1000)
+- Request body size limited to 1 MB
+- No external network dependencies at runtime
+- Docker healthcheck monitors container status
+- All dependencies pinned to specific versions
 
 ## Development
 
@@ -193,5 +228,13 @@ uvicorn app:app --reload
 
 ## License
 
-This project is provided as-is for demonstration purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Model Licenses
+
+The pre-trained models used in this project have their own licenses:
+- **DistilBERT** (sentiment): Apache 2.0
+- **Toxic-BERT** (toxicity): Apache 2.0
+
+Both models are freely available from HuggingFace Hub and compatible with commercial use. See [LICENSE](LICENSE) for full attribution.
 

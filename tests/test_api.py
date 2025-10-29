@@ -97,3 +97,62 @@ def test_backend_identifier(client):
     data = response.json()
     assert data["model_backend"] in ["transformer", "tfidf"]
 
+
+def test_version_endpoint(client):
+    """Test version endpoint returns expected fields."""
+    response = client.get("/version")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Check all fields present
+    assert "version" in data
+    assert "git_sha" in data
+    assert "sentiment_model" in data
+    assert "toxicity_model" in data
+    
+    # Validate model names
+    assert "distilbert" in data["sentiment_model"]
+    assert "toxic-bert" in data["toxicity_model"]
+
+
+def test_very_long_text_boundary(client):
+    """Test handling of very long text (boundary test)."""
+    # 1000 characters - should still work
+    long_text = "This is a test sentence. " * 40  # ~1000 chars
+    response = client.post(
+        "/analyze",
+        json={"text": long_text}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "sentiment" in data
+    assert "toxicity" in data
+
+
+def test_special_characters_handling(client):
+    """Test handling of special characters and Unicode (boundary test)."""
+    special_text = "🔥 I love this! 💯 Best product ever! 😍✨"
+    response = client.post(
+        "/analyze",
+        json={"text": special_text}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should detect positive sentiment despite emojis
+    assert data["sentiment"]["label"] in ["POSITIVE", "NEGATIVE"]
+    assert 0.0 <= data["toxicity"] <= 1.0
+
+
+def test_punctuation_only_text(client):
+    """Test edge case with only punctuation (negative test)."""
+    response = client.post(
+        "/analyze",
+        json={"text": "!@#$%^&*()"}
+    )
+    # Should still return valid response, not crash
+    assert response.status_code == 200
+    data = response.json()
+    assert "sentiment" in data
+    assert "toxicity" in data
+

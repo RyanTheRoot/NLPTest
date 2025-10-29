@@ -1,10 +1,14 @@
 # Sentiment & Toxicity Analysis API - Offline Docker Image
 FROM python:3.11-slim
 
+# Build argument for git SHA
+ARG GIT_SHA=unknown
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     HF_HOME=/opt/models \
     MODEL_BACKEND=transformer \
+    GIT_SHA=${GIT_SHA} \
     DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
@@ -33,11 +37,22 @@ RUN python models/bootstrap_models.py
 RUN apt-get purge -y --auto-remove build-essential && \
     rm -rf /root/.cache
 
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash appuser && \
+    chown -R appuser:appuser /app /opt/models
+
+# Switch to non-root user
+USER appuser
+
 # Expose port
 EXPOSE 8000
 
 # Set offline mode for runtime (models already downloaded)
 ENV TRANSFORMERS_OFFLINE=1
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()" || exit 1
 
 # Run the application
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "30"]
